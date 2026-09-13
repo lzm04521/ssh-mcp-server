@@ -5,7 +5,7 @@ import { SERVER_CONFIG } from "../config/server.js";
 // 应用更新：对照 npm registry 的 latest 版本（本项目经 npm 分发），
 // 语义移植自 MCP-DB-Tools 的 UpdateChecker（Velopack/GitHub Releases）：
 // status 只读缓存、check 走网络、installed 区分 npm 安装与本地开发模式。
-const PKG = "@keysqiu/ssh-mcp-server";
+const PKG = "@lzm04521/ssh-mcp-server";
 const REGISTRY_URL = `https://registry.npmjs.org/${encodeURIComponent(PKG)}`;
 
 export interface UpdateStatus {
@@ -38,7 +38,7 @@ export function getCurrentVersion(): string {
 /** 运行脚本位于 node_modules 内（npm 全局/npx 安装）才算正式安装；本地 build 目录属开发模式 */
 export function isNpmInstalled(): boolean {
   const script = process.argv[1] || "";
-  return script.includes(`node_modules${path.sep}@sieop`);
+  return script.includes(`node_modules${path.sep}@lzm04521`);
 }
 
 /** 语义化版本比较：a>b 返回 1，a<b 返回 -1，相等 0（忽略预发布标签，缺位补 0） */

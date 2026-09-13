@@ -23,6 +23,24 @@ describe("system control (autostart/update/restart)", () => {
       const cmd = buildAutostartCommand();
       assert.match(cmd, /^".+node[^"]*"\s+".+"\s+--admin$/);
     });
+
+    it("isNpmInstalled matches @lzm04521 global install path only", async () => {
+      const { isNpmInstalled } = await import("../build/services/update-service.js");
+      const orig = process.argv[1];
+      try {
+        // 包名 v1.1.5 迁移 @keysqiu → @lzm04521，锁定新包名可识别、旧包名不再误判
+        const globalPath = path.join("C:", "Users", "x", "AppData", "Roaming", "npm", "node_modules", "@lzm04521", "ssh-mcp-server", "build", "index.js");
+        process.argv[1] = globalPath;
+        assert.equal(isNpmInstalled(), true);
+        const legacyPath = globalPath.replace("@lzm04521", "@keysqiu");
+        process.argv[1] = legacyPath;
+        assert.equal(isNpmInstalled(), false, "旧包名 @keysqiu 不应再被识别为 npm 安装");
+        process.argv[1] = path.join(os.tmpdir(), "local-build", "index.js");
+        assert.equal(isNpmInstalled(), false);
+      } finally {
+        process.argv[1] = orig;
+      }
+    });
   });
 
   describe("read-only routes", () => {
@@ -41,6 +59,13 @@ describe("system control (autostart/update/restart)", () => {
       assert.equal(typeof r.enabled, "boolean");
       assert.equal(typeof r.supported, "boolean");
       assert.equal(r.supported, process.platform === "win32");
+      // command 字段：Windows 上为实际将写入注册表的启动命令，其他平台为空串
+      assert.equal(typeof r.command, "string");
+      if (process.platform === "win32") {
+        assert.match(r.command, /^".+"\s+".+"\s+--admin$/);
+      } else {
+        assert.equal(r.command, "");
+      }
     });
 
     it("GET /admin/api/defaults exposes single-source defaults", async () => {
@@ -62,23 +87,20 @@ describe("system control (autostart/update/restart)", () => {
       assert.equal(r.installed, false);
     });
 
-    it("PUT autostart respects platform support without touching real registry", async () => {
-      // 只验证路由返回（不真实写注册表，避免污染用户 HKCU Run 键）：
-      // 非 Windows → 400 UNSUPPORTED_PLATFORM；Windows → 交给 setAutostart（可能 200 或注册表错误 500）
-      const res = await fetch(`http://127.0.0.1:${srv.port}/admin/api/autostart`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ enabled: true }),
-      });
-      if (process.platform !== "win32") {
+    // Windows 上跳过真实 PUT：写入 HKCU Run 键会把指向测试构建路径的死命令留在用户注册表里（污染），
+    // 与本文件头“写入注册表不进测试”的约定保持一致；平台校验逻辑由非 Windows 分支覆盖。
+    (process.platform === "win32" ? it.skip : it)(
+      "PUT autostart rejects on unsupported platform without touching real registry",
+      async () => {
+        const res = await fetch(`http://127.0.0.1:${srv.port}/admin/api/autostart`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ enabled: true }),
+        });
         assert.equal(res.status, 400);
         assert.match((await res.json()).code, /UNSUPPORTED_PLATFORM/);
-      } else {
-        // Windows 上不强制断言 200：真实写注册表可能被沙箱/权限拦截返回 500，
-        // 但必须明确是「注册表写入失败」而非「平台不支持」。
-        assert.ok(res.status === 200 || res.status === 500, `expected 200 or 500, got ${res.status}`);
-      }
-    });
+      },
+    );
 
     it("POST /admin/api/restart soft-restarts in-process and comes back", async () => {
       const before = await (await fetch(`http://127.0.0.1:${srv.port}/admin/api/system/info`)).json();

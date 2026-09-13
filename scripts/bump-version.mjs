@@ -10,11 +10,9 @@
  *
  * 同步更新：
  *   1. package.json / admin-web/package.json
- *   2. src-tauri/Cargo.toml 的 [package] version + src-tauri/Cargo.lock 本应用条目
- *   3. src-tauri/tauri.conf.json 的 package.version（Tauri 1.x 读取它而非 ../package.json）
- *   4. CHANGELOG.md 顶部插入新版本骨架（已存在同名条目则跳过）
+ *   2. CHANGELOG.md 顶部插入新版本骨架（已存在同名条目则跳过）
  *
- * 之后：填写 CHANGELOG → commit → git tag vX.Y.Z → push（CI 会强制校验 tag 与版本一致）
+ * 之后：填写 CHANGELOG → npm publish 发布新版本
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -58,35 +56,7 @@ const aw = JSON.parse(read("admin-web/package.json"));
 aw.version = version;
 write("admin-web/package.json", JSON.stringify(aw, null, 2) + "\n");
 
-// 2. Cargo.toml [package] version + Cargo.lock 本应用条目
-const cargo = read("src-tauri/Cargo.toml");
-const newCargo = cargo.replace(/^version = "[^"]*"/m, `version = "${version}"`);
-if (newCargo === cargo) {
-  console.error("✗ 未能在 src-tauri/Cargo.toml 中找到 [package] version 行");
-  process.exit(1);
-}
-write("src-tauri/Cargo.toml", newCargo);
-
-const cargoLock = read("src-tauri/Cargo.lock");
-const appName = (cargo.match(/^name = "([^"]+)"/m) || [])[1] || "ssh-mcp-server-gui";
-const newCargoLock = cargoLock.replace(
-  new RegExp(`(name = "${appName}"\\r?\\nversion = ")[^"]*(")`),
-  `$1${version}$2`,
-);
-if (newCargoLock === cargoLock) {
-  console.error(`✗ 未能在 src-tauri/Cargo.lock 中找到 name = "${appName}" 条目`);
-  process.exit(1);
-}
-write("src-tauri/Cargo.lock", newCargoLock);
-
-// 3. tauri.conf.json 顶层 version（Tauri 2 schema）
-const confPath = "src-tauri/tauri.conf.json";
-const conf = JSON.parse(read(confPath));
-conf.version = version;
-write(confPath, JSON.stringify(conf, null, 2) + "\n");
-console.log("- src-tauri/tauri.conf.json version 已同步");
-
-// 4. CHANGELOG.md 顶部插入新版本骨架
+// 2. CHANGELOG.md 顶部插入新版本骨架
 const changelogPath = "CHANGELOG.md";
 let changelog;
 try { changelog = read(changelogPath); } catch { changelog = ""; }
@@ -105,8 +75,7 @@ if (changelog.includes(`## v${version}`)) {
 }
 
 console.log(`\n✔ 版本已升级: v${oldVersion} → v${version}`);
-console.log("  已同步: package.json / admin-web/package.json / Cargo.toml / Cargo.lock / tauri.conf.json");
+console.log("  已同步: package.json / admin-web/package.json / CHANGELOG.md");
 console.log("下一步：");
 console.log(`  1. 填写 CHANGELOG.md 的 v${version} 条目`);
-console.log(`  2. git commit -am "chore: 升级版本至 v${version}"`);
-console.log(`  3. git tag v${version} && git push origin main v${version}`);
+console.log(`  2. npm publish --access public 发布 @lzm04521/ssh-mcp-server@${version}`);

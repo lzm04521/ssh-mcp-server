@@ -8,6 +8,11 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const backupsAutoEnabled = Form.useWatch("backupsAutoEnabled", form);
+  // 开机自启动是注册表级系统设置，不走表单保存，切换即时生效
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [autostartSupported, setAutostartSupported] = useState(false);
+  const [autostartCommand, setAutostartCommand] = useState("");
+  const [autostartSaving, setAutostartSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -27,6 +32,29 @@ export default function Settings() {
       message.error("加载设置失败：" + String(e?.message || e));
     } finally {
       setLoading(false);
+    }
+    try {
+      const a: any = await api.autostartGet();
+      setAutostartEnabled(Boolean(a?.enabled));
+      setAutostartSupported(Boolean(a?.supported));
+      setAutostartCommand(String(a?.command || ""));
+    } catch {
+      // 自启状态加载失败不阻塞页面，开关保持默认关闭
+    }
+  };
+
+  const toggleAutostart = async (checked: boolean) => {
+    setAutostartSaving(true);
+    try {
+      const res: any = await api.autostartSet(checked);
+      if (res?.ok === false) throw new Error(res.message || "设置失败");
+      setAutostartEnabled(Boolean(res?.enabled));
+      message.success(checked ? "已开启开机自启动" : "已关闭开机自启动");
+    } catch (e: any) {
+      setAutostartEnabled(!checked);
+      message.error(e?.message || "设置开机自启动失败");
+    } finally {
+      setAutostartSaving(false);
     }
   };
 
@@ -89,6 +117,41 @@ export default function Settings() {
           <Divider style={{ margin: "12px 0" }} />
           <Form.Item name="preConnect" label="启动时预连接" valuePropName="checked" extra="开启后服务启动时自动连接所有已配置节点">
             <Switch />
+          </Form.Item>
+          <Form.Item
+            label="开机自启动"
+            extra={
+              autostartSupported
+                ? "开启后登录 Windows 自动启动常驻服务（写入注册表 HKCU Run 键，即时生效）；MCP 客户端与管理台随开随用"
+                : "仅支持 Windows（写入注册表 HKCU Run 键），当前平台不可用"
+            }
+          >
+            <Space direction="vertical" size={4} style={{ width: "100%" }}>
+              <Space size={12}>
+                <Switch
+                  checked={autostartEnabled}
+                  loading={autostartSaving}
+                  disabled={!autostartSupported}
+                  onChange={toggleAutostart}
+                />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {autostartCommand ? "启动命令：" : ""}
+                  {autostartCommand && (
+                    <Typography.Text code copyable={{ text: autostartCommand }} style={{ fontSize: 12, wordBreak: "break-all" }}>
+                      {autostartCommand}
+                    </Typography.Text>
+                  )}
+                </Typography.Text>
+              </Space>
+              {autostartSupported && autostartEnabled && autostartCommand.includes("_npx") && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginTop: 4 }}
+                  message="当前常驻服务运行自 npx 缓存目录，npm 清理缓存或版本变更后自启命令可能失效。建议改用 npm install -g 全局安装（路径持久稳定）。"
+                />
+              )}
+            </Space>
           </Form.Item>
 
           <Typography.Text strong style={{ fontSize: 13, color: "#1677ff", marginTop: 8, display: "block" }}>

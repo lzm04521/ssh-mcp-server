@@ -6,17 +6,21 @@
  */
 
 import { execSync } from 'child_process';
+import { fileURLToPath } from 'node:url';
 
 console.log('🧪 运行测试...\n');
+
+// Windows 下 URL.pathname 是 "/D:/..." 形式，直接作 cwd 会 ENOENT，必须走 fileURLToPath
+const root = fileURLToPath(new URL('..', import.meta.url));
 
 try {
   execSync('node scripts/build.js', {
     stdio: 'inherit',
-    cwd: new URL('..', import.meta.url).pathname
+    cwd: root
   });
   execSync('node --test test/**/*.test.js', {
     stdio: 'inherit',
-    cwd: new URL('..', import.meta.url).pathname
+    cwd: root
   });
 } catch (err) {
   process.exit(1);

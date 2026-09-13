@@ -46,6 +46,8 @@ export const api = {
   securitySave: (body: any) => fetch("/admin/api/security", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(handleResponse),
   settingsGet: (): Promise<any> => fetch("/admin/api/settings").then(handleResponse),
   settingsSave: (body: any) => fetch("/admin/api/settings", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(handleResponse),
+  autostartGet: (): Promise<any> => fetch("/admin/api/autostart").then(handleResponse),
+  autostartSet: (enabled: boolean) => fetch("/admin/api/autostart", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled }) }).then(handleResponse),
   configExportRaw: (): Promise<any> => fetch("/admin/api/config/export").then(handleResponse),
   configImport: (data: any) => fetch("/admin/api/config/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) }).then(handleResponse)
 };

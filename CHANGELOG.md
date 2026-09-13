@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.1.5
+
+### 功能
+
+- **包名迁移至个人 scope `@lzm04521`**：npm 包由 `@keysqiu/ssh-mcp-server` 迁移为 `@lzm04521/ssh-mcp-server`（fork 独立分发），管理台在线更新检测/升级同步指向新包名；README、迁移指南与 skills 中所有安装命令同步更新
+
+### 变更
+
+- **移除 Windows 桌面壳（Tauri）**：删除 `src-tauri/` 桌面应用、Tauri 构建脚本与 CI 中的 Rust/NSIS 打包/Release 流程，仅保留 npm/npx 分发形态；`version:bump` 不再同步 Cargo.toml / tauri.conf.json，发版方式改为本地 `npm publish`
+
+**对比 v1.1.4**：https://github.com/lzm04521/ssh-mcp-server/compare/v1.1.4...v1.1.5
+
+## v1.1.4
+
+### 功能
+
+- **管理台新增「开机自启动」开关（设置页 · 服务区）**：一键将常驻服务注册为 Windows 登录自启（写入 HKCU Run 注册表键，无需管理员权限），切换即时生效；开关下方展示实际写入的启动命令，npx 缓存形态（路径不稳定）下给出改用全局安装的提示；非 Windows 平台自动禁用。v1.1.0 移除系统页后自启能力首次回归管理台
+- **README 补充全局安装 + 常驻服务形态**：`npm install -g` 后 MCP 客户端直接以 `ssh-mcp-server` 作为 command（无参数自动拉起/复用常驻服务），配合开机自启实现管理台与 MCP 通道开机即用
+
+### 修复
+
+- **在线更新在 npm 全局安装下失效**：`isNpmInstalled` 仍按 v1.1.0 之前的旧包名 `@sieop` 判断安装形态，包名迁移至 `@keysqiu` 后全局安装被误判为本地开发模式，「检查更新/在线更新」不可用；现改按新包名判断
+- **测试不再污染用户注册表**：Windows 上 `PUT /admin/api/autostart` 测试此前会真实写入指向测试构建路径的 HKCU Run 键，现改为 Windows 跳过该用例（与本文件测试约定一致）
+- **`npm test` 在 Windows 上无法运行**：`run-tests.js` 以 `URL.pathname` 作为子进程 cwd，Windows 下为 `/D:/...` 形式导致 `spawnSync cmd.exe ENOENT`、测试入口直接失败；改用 `fileURLToPath` 规范化（与 `bump-version.mjs` 既有模式一致）
+
+**对比 v1.1.3**：https://github.com/SIE-Operations-and-Maintenance-Team/ssh-mcp-server/compare/v1.1.3...v1.1.4
+
 ## v1.1.3
 
 ### 功能

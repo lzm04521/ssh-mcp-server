@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 
 // 登录自启动：写当前用户 HKCU Run 键（无需管理员权限），移植自 MCP-DB-Tools 的 AutostartService
@@ -20,7 +21,14 @@ export function isAutostartSupported(): boolean {
 
 /** 注册表里写入的启动命令：node <当前脚本> --admin（端口随后从 config.json 读取） */
 export function buildAutostartCommand(): string {
-  const exe = process.execPath;
+  // fnm/nvm 等版本管理器的 execPath 位于会话级符号链接目录（如 fnm multishell，会话结束即销毁），
+  // 直接写入注册表会导致重启后自启失效；realpath 解析到稳定的版本安装目录
+  let exe = process.execPath;
+  try {
+    exe = fs.realpathSync(exe);
+  } catch {
+    // 解析失败（极端文件系统场景）保留原路径
+  }
   const script = process.argv[1] ? path.resolve(process.argv[1]) : "";
   return `"${exe}"${script ? ` "${script}"` : ""} --admin`;
 }

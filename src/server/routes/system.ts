@@ -9,6 +9,7 @@ import {
   isAutostartSupported,
   getAutostartEnabled,
   setAutostart,
+  buildAutostartCommand,
 } from "../../services/autostart-service.js";
 import {
   getCurrentVersion,
@@ -86,6 +87,9 @@ export function registerSystemRoutes(
     return {
       enabled: await getAutostartEnabled(),
       supported: isAutostartSupported(),
+      // command 暴露实际将写入注册表的启动命令，供前端展示与核对
+      // （npx 缓存形态路径不稳定，npm 全局安装路径持久可靠）
+      command: isAutostartSupported() ? buildAutostartCommand() : "",
     };
   });
 
