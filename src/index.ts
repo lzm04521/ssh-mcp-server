@@ -5,7 +5,7 @@ import { SERVER_CONFIG } from "./config/server.js";
 import { Logger } from "./utils/logger.js";
 import { CommandLineParser } from "./cli/command-line-parser.js";
 import { resolveRunMode } from "./cli/run-mode.js";
-import { runProxyMode } from "./cli/stdio-proxy.js";
+import { runProxyMode, probeAdminServer } from "./cli/stdio-proxy.js";
 import { ConfigStore, getGlobalConfigPath } from "./services/config-store.js";
 import { DEFAULT_ADMIN_PORT } from "./models/admin-types.js";
 import { startAdminServer } from "./server/index.js";
@@ -82,7 +82,24 @@ async function main(): Promise<void> {
       filePort = cfg.port;
     } catch {}
     const port = cliPort ?? filePort ?? DEFAULT_ADMIN_PORT;
-    const srv = await startAdminServer({ port, configPath });
+    // 幂等启动：端口上已有本项目常驻服务则直接退出。开机自启、多个 MCP 代理的
+    // ensureAdminServer、restart-helper 可能在登录瞬间并发拉起多个 --admin 进程，
+    // 不探测就会集体 listen 撞端口（EADDRINUSE 风暴，daemon.log 可见）。
+    if (await probeAdminServer(port)) {
+      Logger.log(`端口 ${port} 已有 admin 常驻服务，本次启动退出`, "info");
+      return;
+    }
+    let srv;
+    try {
+      srv = await startAdminServer({ port, configPath });
+    } catch (error) {
+      // 探测与 listen 之间的竞态落败者：端口被本项目实例抢到则视为复用成功
+      if (String((error as any)?.message || error).includes("EADDRINUSE") && await probeAdminServer(port)) {
+        Logger.log(`端口 ${port} 已被其他 admin 实例占用，本次启动退出`, "info");
+        return;
+      }
+      throw error;
+    }
     Logger.log(`Admin server listening on 127.0.0.1:${srv.port}`, "info");
     return;
   }

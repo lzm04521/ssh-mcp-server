@@ -18,10 +18,40 @@ describe("system control (autostart/update/restart)", () => {
       assert.equal(compareSemver("1.9", "1.9.0"), 0);
     });
 
-    it("buildAutostartCommand quotes paths and appends --admin", async () => {
-      const { buildAutostartCommand } = await import("../build/services/autostart-service.js");
+    it("buildAutostartCommand launches wscript with the VBS launcher", async () => {
+      const { buildAutostartCommand, getAutostartVbsPath } = await import("../build/services/autostart-service.js");
       const cmd = buildAutostartCommand();
-      assert.match(cmd, /^".+node[^"]*"\s+".+"\s+--admin$/);
+      // 新形态：注册表只写 wscript 隐藏启动器，node 路径由 VBS 运行时解析（升级不失效）
+      assert.match(cmd, /^wscript\.exe \/\/B ".*autostart\.vbs"$/);
+      assert.ok(cmd.includes(getAutostartVbsPath()));
+    });
+
+    it("buildAutostartVbs resolves fnm alias first and hides the daemon", async () => {
+      const { buildAutostartVbs } = await import("../build/services/autostart-service.js");
+      const vbs = buildAutostartVbs({
+        fallbackNodeExe: "C:\\Users\\x\\AppData\\Roaming\\fnm\\node-versions\\v22.22.3\\installation\\node.exe",
+        scriptPath: "C:\\Global\\node_modules\\@lzm04521\\ssh-mcp-server\\build\\index.js",
+        logPath: "C:\\ProgramData\\SshMcpServer\\daemon.log",
+      });
+      // fnm 默认别名优先（版本升级后仍有效），注册时实路径仅作兜底
+      assert.ok(vbs.includes("\\fnm\\aliases\\default\\node.exe"));
+      assert.ok(vbs.includes("If fso.FileExists(fnmAlias) Then nodeExe = fnmAlias"));
+      // 隐藏窗口 + 日志重定向 + --admin 常驻参数
+      assert.ok(vbs.includes("cmd.exe /d /s /c"));
+      assert.ok(vbs.includes("--admin >> "));
+      assert.ok(vbs.includes("shell.Run"));
+      // 纯 ASCII：wscript 按本地代码页解析无 BOM 脚本
+      assert.ok(!/[^\x00-\x7F]/.test(vbs));
+    });
+
+    it("isUnstableEntryScript rejects session-scoped and npx cache paths", async () => {
+      const { isUnstableEntryScript } = await import("../build/services/autostart-service.js");
+      assert.equal(isUnstableEntryScript("C:\\Users\\x\\AppData\\Local\\fnm_multishells\\24896_1\\node_modules\\@lzm04521\\ssh-mcp-server\\build\\index.js"), true);
+      assert.equal(isUnstableEntryScript("C:\\Users\\x\\AppData\\Local\\npm-cache\\_npx\\abc\\node_modules\\@lzm04521\\ssh-mcp-server\\build\\index.js"), true);
+      assert.equal(isUnstableEntryScript("C:/Users/x/AppData/Local/FNM_MULTISHELLS/1/node_modules/pkg/index.js"), true, "大小写与斜杠方向不敏感");
+      // npm 全局安装与本地构建目录是稳定路径
+      assert.equal(isUnstableEntryScript("C:\\Global\\node_modules\\@lzm04521\\ssh-mcp-server\\build\\index.js"), false);
+      assert.equal(isUnstableEntryScript("D:\\GitHub\\ssh-mcp-server\\build\\index.js"), false);
     });
 
     it("isNpmInstalled matches @lzm04521 global install path only", async () => {
@@ -59,10 +89,10 @@ describe("system control (autostart/update/restart)", () => {
       assert.equal(typeof r.enabled, "boolean");
       assert.equal(typeof r.supported, "boolean");
       assert.equal(r.supported, process.platform === "win32");
-      // command 字段：Windows 上为实际将写入注册表的启动命令，其他平台为空串
+      // command 字段：Windows 上为实际将写入注册表的 wscript 启动命令，其他平台为空串
       assert.equal(typeof r.command, "string");
       if (process.platform === "win32") {
-        assert.match(r.command, /^".+"\s+".+"\s+--admin$/);
+        assert.match(r.command, /^wscript\.exe \/\/B ".*autostart\.vbs"$/);
       } else {
         assert.equal(r.command, "");
       }

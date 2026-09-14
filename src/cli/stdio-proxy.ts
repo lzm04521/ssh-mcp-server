@@ -202,17 +202,29 @@ function locateEntryScript(): string {
   return script;
 }
 
+/** realpath 解析（失败返回原路径）：剥掉 fnm multishell 等会话级符号链接，锚定稳定实路径 */
+function realpathOrRaw(p: string): string {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return p;
+  }
+}
+
 /**
  * 以分离进程拉起 admin 常驻服务并等待就绪。
  * cwd 必须用主目录而非包安装目录：Windows 下进程 CWD 所在目录不可被重命名，
  * npx 升级重装时 npm 需要先 rename 包目录，否则 EBUSY（v1.1.1 及之前因此升级失败）。
+ * execPath/entryScript 必须 realpath：daemon 是长驻进程，会话级 multishell 路径
+ * 随 shell 会话清理变成幽灵路径，后续 restart-helper 按该路径自我重启会失败。
  */
 async function spawnAdminServerAndWait(port: number): Promise<void> {
-  const script = locateEntryScript();
+  const script = realpathOrRaw(locateEntryScript());
+  const exe = realpathOrRaw(process.execPath);
   const logDir = path.dirname(getGlobalConfigPath());
   fs.mkdirSync(logDir, { recursive: true });
   const logFile = path.join(logDir, "daemon.log");
-  const child = spawn(process.execPath, [script, "--admin", "--admin-port", String(port)], {
+  const child = spawn(exe, [script, "--admin", "--admin-port", String(port)], {
     detached: true,
     stdio: ["ignore", fs.openSync(logFile, "a"), fs.openSync(logFile, "a")],
     cwd: os.homedir(),

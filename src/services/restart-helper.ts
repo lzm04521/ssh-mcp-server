@@ -9,8 +9,16 @@ import path from "node:path";
 // 实现为临时 .ps1 文件执行：避免 -Command 的嵌套引号在含空格路径下被错误解析；
 // 新实例 stdout/stderr 落盘到系统临时目录，启动失败时可查。
 export function scheduleRestartAndExit(close: () => Promise<unknown>, timeoutMs = 15000): void {
-  const exe = process.execPath;
-  const script = process.argv[1] ? path.resolve(process.argv[1]) : "";
+  // realpath 锚定稳定实路径：daemon 可能由会话级 multishell 链接拉起，会话结束后该路径即失效
+  const stable = (p: string) => {
+    try {
+      return fs.realpathSync(p);
+    } catch {
+      return p;
+    }
+  };
+  const exe = stable(process.execPath);
+  const script = process.argv[1] ? stable(path.resolve(process.argv[1])) : "";
 
   if (process.platform === "win32" && script) {
     try {

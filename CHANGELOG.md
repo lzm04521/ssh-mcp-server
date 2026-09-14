@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.1.6
+
+### 重构
+
+- **开机自启改为 VBS 隐藏启动器，不再把 node.exe 路径写进注册表**：HKCU Run 键改为 `wscript.exe //B "%LOCALAPPDATA%\SshMcpServer\autostart.vbs"`（启用时生成）。wscript 为 GUI 子系统进程，登录时**不再弹出终端窗口**——此前 node 控制台程序被 Run 键直接拉起，每次登录弹出可见终端窗口，窗口一旦被关闭常驻服务随之退出，表现为"开机后管理台访问不到"。VBS 运行时动态解析 node：fnm 默认别名（`%APPDATA%\fnm\aliases\default`，node 升级后仍有效）优先，启用时的实路径兜底——此前注册表写死 fnm 版本化路径（`fnm\node-versions\v22.22.3\...`），node 升级即失效。启动输出落 `autostart.log`（与 daemon.log 同目录；不能复用 daemon.log：cmd 的 `>>` 以严格共享模式打开文件，被常驻进程 stdout 句柄持有的 daemon.log 会 sharing violation，隐藏窗口下报错不可见、整条命令静默不执行）
+- **常驻服务幂等启动，根治并发拉起的 EADDRINUSE 风暴**：`--admin` 模式启动前先探测目标端口，已有本项目常驻实例则记日志并退出（退出码 0）；探测与 listen 间竞态落败（EADDRINUSE）时再次探测确认后优雅退出。开机自启、多个 MCP 客户端代理的 ensureAdminServer、restart-helper 在登录瞬间并发拉起多实例的互踩（daemon.log 中单次登录 6 条 EADDRINUSE 实录）就此消除
+- **daemon 拉起路径一律 realpath 锚定**：npx 代理分离拉起与 restart-helper 重启此前直接用 `process.execPath`/`argv[1]`，fnm multishell 等会话级符号链接随 shell 会话清理变成幽灵路径，daemon 长驻后按原路径自我重启必然失败；现统一 realpath 解析到稳定实路径
+- **从临时目录启用自启时明确拒绝**：入口脚本位于 fnm multishell / npx 缓存（`_npx`）等会话级/缓存级路径时，启用开机自启直接报错并提示改用 `npm install -g`，不再写入重启后必然失效的启动项
+
+**对比 v1.1.5**：https://github.com/lzm04521/ssh-mcp-server/compare/v1.1.5...v1.1.6
+
 ## v1.1.5
 
 ### 功能
