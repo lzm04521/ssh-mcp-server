@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.1.7
+
+### 功能
+
+- **管理台新增「关于」页，在线版本更新能力回归**：侧边栏新增「关于」菜单，含系统信息（版本/管理端口/运行平台/配置文件路径）、版本更新、更新日志三个卡片。版本更新对照 npm registry（唯一分发渠道）：「检查更新」查 latest 版本，「安装并重启」二次确认后 `npm install -g @latest` 并由 restart-helper 自动重启服务，前端轮询服务恢复且版本到达目标后自动刷新页面加载新版管理台；提示语状态机覆盖加载中/本地开发模式/检查失败/未检查/发现新版本/已是最新。v1.1.0 移除系统菜单后管理台失去更新入口，后端 update 三件套 API 一直在但无 UI 消费
+- **更新日志内嵌管理台并随 npm 包分发**：新增 `GET /admin/api/system/changelog`，changelog-service 显式正则解析包根 CHANGELOG.md（`## vX.Y.Z → ### 分类 → - 条目 → **对比**：链接`）为结构化数据，「关于」页按版本折叠展示（当前版本默认展开并高亮标注、条目粗体强调、版本对比外链）；`files` 白名单补 CHANGELOG.md（v1.1.7 起随包分发），存量旧包无此文件时接口降级 NOT_PACKAGED、前端提示并引导 GitHub 查看
+
+### 修复
+
+- **Header GitHub 链接指向旧组织仓库**：管理台右上角 GitHub 按钮仍指向上游 SIE-Operations-and-Maintenance-Team/ssh-mcp-server，包名 v1.1.5 已迁移 @lzm04521，现修正为 fork 仓库；「关于」页底部同款仓库/Issues/npm 包链接
+- **设置页过时提示**：副标题"（管理端口在'系统'页）"引用 v1.1.0 已删除的系统页，移除悬空引用
+
+**对比 v1.1.6**：https://github.com/lzm04521/ssh-mcp-server/compare/v1.1.6...v1.1.7
+
 ## v1.1.6
 
 ### 重构

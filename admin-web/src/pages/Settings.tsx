@@ -107,7 +107,7 @@ export default function Settings() {
         <SettingOutlined style={{ color: "#1677ff", marginRight: 8 }} />
         设置
       </Typography.Title>
-      <Typography.Text type="secondary">集中配置预连接、审计与备份（管理端口在“系统”页）</Typography.Text>
+      <Typography.Text type="secondary">集中配置预连接、审计与备份</Typography.Text>
       <Card style={{ borderRadius: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }} loading={loading}>
         <Form form={form} layout="vertical">
           <Typography.Text strong style={{ fontSize: 13, color: "#1677ff" }}>

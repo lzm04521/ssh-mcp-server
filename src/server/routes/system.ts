@@ -18,6 +18,7 @@ import {
   installLatest,
 } from "../../services/update-service.js";
 import { scheduleRestartAndExit } from "../../services/restart-helper.js";
+import { getChangelog } from "../../services/changelog-service.js";
 
 export function registerSystemRoutes(
   app: FastifyInstance,
@@ -30,6 +31,20 @@ export function registerSystemRoutes(
     const cfg = await store.load();
     const port = addr && typeof addr.port === "number" ? addr.port : cfg.port;
     return { port, version: getCurrentVersion(), platform: process.platform, configPath: store.path };
+  });
+
+  // ===== 更新日志（读包根 CHANGELOG.md，v1.1.7 起随 npm 包分发）=====
+  app.get("/admin/api/system/changelog", async (_req: any, reply: any) => {
+    try {
+      return { ok: true, versions: await getChangelog() };
+    } catch (e: any) {
+      if (e?.code === "ENOENT") {
+        // 存量旧版本安装包未含 CHANGELOG.md，非错误：前端降级为提示 + GitHub 链接
+        return { ok: false, reason: "NOT_PACKAGED", message: "当前安装包未包含更新日志（v1.1.7 起随包分发）" };
+      }
+      reply.code(500);
+      return { ok: false, code: "CHANGELOG_READ_FAILED", message: String(e?.message || e) };
+    }
   });
 
   // R5: 注册 MCP 到指定 scope 的 mcp.json

@@ -12,12 +12,14 @@ import {
   MoonOutlined,
   DesktopOutlined,
   GithubOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import Connections from "./pages/Connections";
 import Audit from "./pages/Audit";
 import Backups from "./pages/Backups";
 import Settings from "./pages/Settings";
 import Security from "./pages/Security";
+import About from "./pages/About";
 
 function SiderMenu() {
   const location = useLocation();
@@ -34,6 +36,7 @@ function SiderMenu() {
         { key: "audit", icon: <AuditOutlined />, label: <Link to="/audit">审计日志</Link> },
         { key: "backups", icon: <CloudServerOutlined />, label: <Link to="/backups">备份恢复</Link> },
         { key: "settings", icon: <SettingOutlined />, label: <Link to="/settings">设置</Link> },
+        { key: "about", icon: <InfoCircleOutlined />, label: <Link to="/about">关于</Link> },
       ]}
     />
   );
@@ -135,7 +138,7 @@ export default function App() {
             />
             <Button
               type="text"
-              href="https://github.com/SIE-Operations-and-Maintenance-Team/ssh-mcp-server"
+              href="https://github.com/lzm04521/ssh-mcp-server"
               target="_blank"
               rel="noreferrer"
               title="GitHub 仓库"
@@ -180,6 +183,7 @@ export default function App() {
               <Route path="/audit" element={<Audit />} />
               <Route path="/backups" element={<Backups />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/about" element={<About />} />
             </Routes>
           </Layout.Content>
         </Layout>
